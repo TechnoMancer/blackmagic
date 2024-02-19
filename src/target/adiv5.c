@@ -755,6 +755,19 @@ adiv5_access_port_s *adiv5_new_ap(adiv5_debug_port_s *dp, uint8_t apsel)
 				(uint32_t)(ap.base >> 32U), (uint32_t)ap.base, ap.csw);
 		else
 			DEBUG_INFO(" CFG=%08" PRIx32 " BASE=%08" PRIx32 " CSW=%08" PRIx32, cfg, (uint32_t)ap.base, ap.csw);
+
+		switch (ap_type) {
+		case ADIV5_AP_IDR_TYPE_AXI5:
+			break;
+		}
+		// XXX: We might be able to use the type field in ap->idr to determine if the AP supports TrustZone
+		ap.csw &= ~(ADIV5_AP_CSW_SIZE_MASK | ADIV5_AP_CSW_ADDRINC_MASK | ADIV5_AP_CSW_MTE | ADIV5_AP_CSW_HNOSEC);
+		ap.csw |= ADIV5_AP_CSW_DBGSWENABLE;
+
+		if (ap.csw & ADIV5_AP_CSW_TRINPROG) {
+			DEBUG_ERROR("AP %3u: Transaction in progress. AP is not usable!\n", apsel);
+			return NULL;
+		}
 	}
 
 #if ENABLE_DEBUG == 1
@@ -768,15 +781,6 @@ adiv5_access_port_s *adiv5_new_ap(adiv5_debug_port_s *dp, uint8_t apsel)
 	DEBUG_INFO(" (%s var%" PRIx32 " rev%" PRIx32 ")\n", ap_type_name, ADIV5_AP_IDR_VARIANT(ap.idr),
 		ADIV5_AP_IDR_REVISION(ap.idr));
 #endif
-
-	// XXX: We might be able to use the type field in ap->idr to determine if the AP supports TrustZone
-	ap.csw &= ~(ADIV5_AP_CSW_SIZE_MASK | ADIV5_AP_CSW_ADDRINC_MASK | ADIV5_AP_CSW_MTE | ADIV5_AP_CSW_HNOSEC);
-	ap.csw |= ADIV5_AP_CSW_DBGSWENABLE;
-
-	if (ap.csw & ADIV5_AP_CSW_TRINPROG) {
-		DEBUG_ERROR("AP %3u: Transaction in progress. AP is not usable!\n", apsel);
-		return NULL;
-	}
 
 	/* It's valid to so create a heap copy */
 	adiv5_access_port_s *result = malloc(sizeof(*result));
